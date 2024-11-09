@@ -1,0 +1,247 @@
+{
+    "meta": {
+      "instanceId": "30de5990f59306e501ebe2381b239cde53eb910c24eeb38a46c1d25b55b4eb38"
+    },
+    "nodes": [
+      {
+        "parameters": {
+          "operation": "download",
+          "fileId": "={{$json[\"fileId\"]}}",
+          "options": {}
+        },
+        "id": "13e4e43e-069e-4356-b28f-fe64384ca0c1",
+        "name": "Google Drive Download",
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 3,
+        "position": [
+          640,
+          560
+        ],
+        "credentials": {
+          "googleDriveOAuth2Api": {
+            "id": "",
+            "name": ""
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        },
+        "id": "2d4f254f-1b85-480d-b634-fa3cbf18bcd8",
+        "name": "Extract from PDF",
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          820,
+          560
+        ]
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {}
+            ]
+          }
+        },
+        "id": "d51feedf-494e-44e0-95ec-64fa4048a2b2",
+        "name": "Schedule Trigger1",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          280,
+          560
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const extractedData = items; // Dados extraídos de todos os PDFs\nlet result = [];\n\nextractedData.forEach(item => {\n  const fileName = item.json.fileName;\n  const textContent = item.json.text || \"\"; // Conteúdo completo do PDF extraído\n\n  // Extração das informações previamente configuradas\n  const codigoDisciplina = textContent.match(/Código: (.+?) Nome:/);\n  const nomeDisciplina = textContent.match(/Nome: (.+?)\\n/);\n  const cargaHorariaTotal = textContent.match(/Carga Horária Total: (\\d+)/);\n  const docentePrincipal = textContent.match(/Docente Principal: (.+?)\\n/);\n  const semestre = textContent.match(/Semestre: (\\d{4}\\/\\d)/);\n  const dataCadastro = textContent.match(/Data de Cadastro: (.+)/);\n\n  // Localizar a seção \"Cronograma de Atividades\" e extrair as datas e descrições\n  const cronogramaIndex = textContent.indexOf(\"Cronograma de Atividades\");\n  let atividades = [];\n\n  if (cronogramaIndex !== -1) {\n    const cronogramaContent = textContent.substring(cronogramaIndex);\n    const matches = cronogramaContent.match(/\\d{2}\\/\\d{2}\\/\\d{4} .+/g);\n\n    if (matches) {\n      atividades = matches.map(entry => {\n        const [data, ...descricao] = entry.split(\" \");\n        return { data, descricao: descricao.join(\" \").trim() };\n      });\n    }\n  }\n\n  // Montando o objeto estruturado com todas as informações\n  result.push({\n    fileName: fileName,\n    codigoDisciplina: codigoDisciplina ? codigoDisciplina[1].trim() : \"Não encontrado\",\n    nomeDisciplina: nomeDisciplina ? nomeDisciplina[1].trim() : \"Não encontrado\",\n    cargaHorariaTotal: cargaHorariaTotal ? cargaHorariaTotal[1] : \"Não encontrada\",\n    docentePrincipal: docentePrincipal ? docentePrincipal[1].trim() : \"Não encontrado\",\n    semestre: semestre ? semestre[1] : \"Não encontrado\",\n    dataCadastro: dataCadastro ? dataCadastro[1].trim() : \"Não encontrada\",\n    atividades: atividades.length > 0 ? atividades : \"Nenhuma atividade encontrada\"\n  });\n});\n\nreturn result.map(entry => ({\n  json: entry\n}));\n\n\n"
+        },
+        "id": "5de9c312-bbec-426e-a39f-0276540e390e",
+        "name": "Code",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          980,
+          560
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "//coloque aqui o id do seu documento dentro do drive e o nome do arquivo\nreturn [\n  { fileId: '1wtD8UY8SteBTegjhoeURy_AtQDD2rXLi', fileName: 'gcc252.pdf' },\n  { fileId: '12_cGoSX9uAy3nZsqLqVbA-EFJ0Gm_09j', fileName: 'gac107.pdf' },\n  { fileId: '1mgsu-I5gxBUgPxJ86duPwMtzTBm-J7Sv', fileName: 'gac116.pdf' }\n];"
+        },
+        "id": "f97f5729-66f3-46a2-ae0b-0755caeaf333",
+        "name": "Code1",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          460,
+          560
+        ]
+      },
+      {
+        "parameters": {
+          "calendar": {
+            "__rl": true,
+            "value": "42c3dc45a3ef6267000a731206905304c319a5f46c2cb85b878ac438ba6a6395@group.calendar.google.com",
+            "mode": "list",
+            "cachedResultName": "UFLA"
+          },
+          "start": "={{ (() => { const [day, month, year] = $json.atividades.data.split('/'); const horarios = { 'Programação WEB': { hora: 19, minuto: 0 }, 'Paradigmas de Linguagens de Programação': { hora: 17, minuto: 0 }, 'Arquitetura de Software': { hora: 17, minuto: 0 } }; const horario = horarios[$json.nomeDisciplina] || { hora: 0, minuto: 0 }; let horaAjustada = horario.hora - 3; if (horaAjustada >= 24) { horaAjustada -= 24; } const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${String(horaAjustada).padStart(2, '0')}:${String(horario.minuto).padStart(2, '0')}:00`; return formattedDate; })() }}",
+          "end": "={{ (() => { const [day, month, year] = $json.atividades.data.split('/'); const horarios = { 'Programação WEB': { hora: 20, minuto: 40 }, 'Paradigmas de Linguagens de Programação': { hora: 18, minuto: 40 }, 'Arquitetura de Software': { hora: 18, minuto: 40 } }; const horario = horarios[$json.nomeDisciplina] || { hora: 0, minuto: 0 }; let horaAjustada = horario.hora - 3; if (horaAjustada >= 24) { horaAjustada -= 24; } const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${String(horaAjustada).padStart(2, '0')}:${String(horario.minuto).padStart(2, '0')}:00`; return formattedDate; })() }}",
+          "additionalFields": {
+            "description": "={{ $json.atividades.descricao }}",
+            "summary": "={{ $json.codigoDisciplina + \" \" + $json.nomeDisciplina}}"
+          }
+        },
+        "id": "f6af0202-aec4-4b27-9438-baa12d42426e",
+        "name": "Google Calendar",
+        "type": "n8n-nodes-base.googleCalendar",
+        "typeVersion": 1.2,
+        "position": [
+          1320,
+          560
+        ],
+        "credentials": {
+          "googleCalendarOAuth2Api": {
+            "id": "",
+            "name": ""
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fieldToSplitOut": "atividades",
+          "include": "selectedOtherFields",
+          "fieldsToInclude": "codigoDisciplina, nomeDisciplina",
+          "options": {}
+        },
+        "id": "65428cad-5266-4f0b-be15-ce0385ad8ddc",
+        "name": "Split Out",
+        "type": "n8n-nodes-base.splitOut",
+        "typeVersion": 1,
+        "position": [
+          1140,
+          560
+        ]
+      },
+      {
+        "parameters": {
+          "content": "Extract",
+          "height": 80,
+          "width": 456.30453899594625
+        },
+        "id": "a2120cda-9ded-4792-96d6-76b2745a3962",
+        "name": "Sticky Note",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          460,
+          460
+        ]
+      },
+      {
+        "parameters": {
+          "content": "Transform",
+          "height": 85.97063906021077,
+          "width": 283.0215079386837,
+          "color": 5
+        },
+        "id": "6353f8fe-cb5b-42fd-a9aa-a1e2633cfa11",
+        "name": "Sticky Note1",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          980,
+          700
+        ]
+      },
+      {
+        "parameters": {
+          "content": "Load",
+          "height": 80,
+          "width": 150,
+          "color": 3
+        },
+        "id": "027d7935-3f39-4dda-be68-b4d847bc13bb",
+        "name": "Sticky Note2",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          1300,
+          460
+        ]
+      }
+    ],
+    "connections": {
+      "Google Drive Download": {
+        "main": [
+          [
+            {
+              "node": "Extract from PDF",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract from PDF": {
+        "main": [
+          [
+            {
+              "node": "Code",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule Trigger1": {
+        "main": [
+          [
+            {
+              "node": "Code1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code": {
+        "main": [
+          [
+            {
+              "node": "Split Out",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code1": {
+        "main": [
+          [
+            {
+              "node": "Google Drive Download",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split Out": {
+        "main": [
+          [
+            {
+              "node": "Google Calendar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "pinData": {}
+  }
